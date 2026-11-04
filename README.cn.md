@@ -12,12 +12,19 @@
 <!-- toc -->
 
 - [概览](#概览)
-  - [特点](#特点)
-  - [框架结构](#框架结构)
-  - [简易高效的并行接口](#简易高效的并行接口)
-- [安装](#安装)
+	- [特点](#特点)
+	- [框架结构](#框架结构)
+		- [Model](#model)
+		- [Algorithm](#algorithm)
+		- [Agent](#agent)
+	- [简易高效的并行接口](#简易高效的并行接口)
+- [安装:](#安装)
+		- [依赖](#依赖)
 - [快速开始](#快速开始)
 - [算法示例](#算法示例)
+- [Waymax-RL(2025 Update, GPU-RL 自动驾驶)](#waymax-rl2025-update-gpu-rl-自动驾驶)
+- [xparl 安全说明](#xparl-安全说明)
+	- [安全性注意事项](#安全性注意事项)
 
 # 概览
 ## 特点
@@ -83,6 +90,8 @@ ans = agent.sum(1,5) # run remotely and not comsume any local computation resour
 pip install parl
 ```
 
+[详细安装说明 (持续更新)](docs/installation_guide_cn.md)
+
 # 快速开始
 请查看一下几个教程帮助您快速上手PARL:
 - [教程](https://parl.readthedocs.io/zh_CN/latest/tutorial/getting_started.html) : 解决经典的 CartPole 问题。
@@ -112,3 +121,20 @@ pip install parl
 <img src="examples/NeurIPS2019-Learn-to-Move-Challenge/image/performance.gif" width = "300" height ="200" alt="NeurlIPS2018"/> <img src=".github/Half-Cheetah.gif" width = "300" height ="200" alt="Half-Cheetah"/> <img src=".github/Breakout.gif" width = "200" height ="200" alt="Breakout"/> 
 <br>
 <img src=".github/Aircraft.gif"  width = "808" height ="300"  alt="NeurlIPS2018"/>
+
+# Waymax-RL(2025 Update, GPU-RL 自动驾驶)
+- 基于waymax仿真的端到端GPU RL自动驾驶训练框架
+  Full documentation and instructions: [waymax_rl/README_cn.md](./waymax_rl/README_cn.md)
+
+# xparl 安全说明
+
+`xparl` 在可信集群机器上执行 Python 代码。启动前，所有 master、worker 和 client 必须配置相同的随机密钥 `XPARL_AUTH_TOKEN`，长度至少 32 字节。所有 ZeroMQ 连接强制使用 CURVE 认证和加密；控制消息使用经过校验的 JSON。master 和 HTTP 服务默认仅监听本机回环地址，监控和日志接口需要身份认证。
+
+## 安全性注意事项
+
+- 仅向可信用户和节点分发集群密钥，持有密钥即拥有在 worker 上执行代码的权限。
+- 使用隔离内网和防火墙限制所有集群端口及心跳端口的访问，禁止公网暴露。
+- 所有节点和客户端必须同时升级并重启，旧进程无法使用新的通信协议。
+- 已发布的历史安装包不会因源码合入自动修复，需升级至修复后的源码或包含补丁的新版本。
+
+配置、监控访问和升级步骤见[安全和升级说明](docs/xparl_security.md)。

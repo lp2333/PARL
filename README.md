@@ -13,10 +13,17 @@ English | [简体中文](./README.cn.md)
 - [About PARL](#about-parl)
   - [Features](#features)
   - [Abstractions](#abstractions)
+    - [Model](#model)
+    - [Algorithm](#algorithm)
+    - [Agent](#agent)
   - [Parallelization](#parallelization)
-- [Install](#install)
+- [Install:](#install)
+    - [Dependencies](#dependencies)
 - [Getting Started](#getting-started)
 - [Examples](#examples)
+- [Waymax-RL(2025 Update, GPU-RL Autonomous Driving)](#waymax-rl2025-update-gpu-rl-autonomous-driving)
+- [xparl Security](#xparl-security)
+  - [Security Considerations](#security-considerations)
 
 # About PARL
 ## Features
@@ -84,6 +91,8 @@ For users, they can write code in a simple way, just like writing multi-thread c
 pip install parl
 ```
 
+[Detailed Installation Guide (Continuously Updated)](docs/installation_guide.md)
+
 # Getting Started
 Several-points to get you started:
 - [Tutorial](https://parl.readthedocs.io/en/latest/tutorial/getting_started.html) : How to solve cartpole problem.
@@ -113,3 +122,20 @@ For beginners who know little about reinforcement learning, we also provide an i
 <img src="examples/NeurIPS2019-Learn-to-Move-Challenge/image/performance.gif" width = "280" height ="200" alt="NeurlIPS2018"/> <img src=".github/Half-Cheetah.gif" width = "280" height ="200" alt="Half-Cheetah"/> <img src=".github/Breakout.gif" width = "195" height ="200" alt="Breakout"/>
 <br>
 <img src=".github/Aircraft.gif"  width = "762" height ="300"  alt="NeurlIPS2018"/>
+
+# Waymax-RL(2025 Update, GPU-RL Autonomous Driving)
+- End-to-End GPU Reinforcement Learning for Waymax Autonomous Driving Simulation.  
+  Full documentation and instructions: [waymax_rl/README.md](./waymax_rl/README.md)
+
+# xparl Security
+
+`xparl` runs Python code on trusted cluster machines. Set a shared, randomly generated `XPARL_AUTH_TOKEN` of at least 32 bytes on every master, worker, and client before startup. All ZeroMQ connections require CURVE authentication and encryption; control metadata uses validated JSON. The master and HTTP services bind to loopback by default, and HTTP monitoring/log routes require credentials.
+
+## Security Considerations
+
+- Only trusted users and machines may hold the cluster secret or submit code.
+- Keep all cluster and heartbeat ports on a private network behind a firewall.
+- Upgrade all nodes and clients together; older processes cannot use the new protocol.
+- Existing published packages require an upgrade to patched source or a release containing the fix.
+
+See the [security and upgrade guide](docs/xparl_security.md) for configuration, monitoring access, and migration steps.

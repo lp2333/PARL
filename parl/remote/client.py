@@ -13,12 +13,14 @@
 # limitations under the License.
 
 import cloudpickle
+from parl.remote import control_serialization
 import datetime
 import os
 import socket
 import sys
 import threading
 import zmq
+from parl.remote.security import SecureContext
 import parl
 import time
 import glob
@@ -27,6 +29,7 @@ import multiprocessing as mp
 from parl.utils import to_str, to_byte, get_ip_address, logger, isnotebook
 from parl.remote.utils import get_subfiles_recursively
 from parl.remote import remote_constants
+from parl.remote.message import InitializedJob
 from parl.remote.grpc_heartbeat import HeartbeatServerThread, HeartbeatServerProcess
 from parl.remote.utils import get_version
 
@@ -65,7 +68,7 @@ class Client(object):
         th.start()
         self.master_address = master_address
         self.process_id = process_id
-        self.ctx = zmq.Context()
+        self.ctx = SecureContext()
         self.lock = threading.Lock()
         self.log_monitor_url = None
         self.threads = []
@@ -175,6 +178,7 @@ class Client(object):
 
         # submit_job_socket: submits job to master
         self.submit_job_socket = self.ctx.socket(zmq.REQ)
+        self.ctx.authenticate_client(self.submit_job_socket)
         self.submit_job_socket.linger = 0
         self.submit_job_socket.setsockopt(zmq.RCVTIMEO, remote_constants.HEARTBEAT_TIMEOUT_S * 1000)
         self.submit_job_socket.connect("tcp://{}".format(master_address))
@@ -241,21 +245,6 @@ class Client(object):
                         to_str(message[1]), to_str(message[2]), to_str(message[3]),
                         client_parl_version, client_python_version_major, client_python_version_minor
                     )
-            client_pyarrow_version = str(get_version('pyarrow'))
-            master_pyarrow_version = to_str(message[4])
-            if client_pyarrow_version != master_pyarrow_version:
-                if master_pyarrow_version == 'None':
-                    error_message = """"pyarrow" is provided in your current environment, however, it is not \
-found in "master"'s environment. To use "pyarrow" for serialization, please install \
-"pyarrow={}" in "master"'s environment!""".format(client_pyarrow_version)
-                elif client_pyarrow_version == 'None':
-                    error_message = """"pyarrow" is provided in "master"'s environment, however, it is not \
-found in your current environment. To use "pyarrow" for serialization, please install \
-"pyarrow={}" in your current environment!""".format(master_pyarrow_version)
-                else:
-                    error_message = '''Version mismatch: the 'master' is of version 'pyarrow={}'. However, \
-'pyarrow={}'is provided in your current environment.'''.format(master_pyarrow_version, client_pyarrow_version)
-                raise Exception(error_message)
         else:
             raise NotImplementedError
 
@@ -274,7 +263,7 @@ found in your current environment. To use "pyarrow" for serialization, please in
                 self.submit_job_socket.send_multipart([
                     remote_constants.CLIENT_STATUS_UPDATE_TAG,
                     to_byte(self.reply_master_heartbeat_address),
-                    cloudpickle.dumps(client_status)
+                    control_serialization.dumps(client_status)
                 ])
                 message = self.submit_job_socket.recv_multipart()
             except zmq.error.Again as e:
@@ -291,6 +280,7 @@ found in your current environment. To use "pyarrow" for serialization, please in
         """
         # job_ping_socket: sends ping signal to job
         job_ping_socket = self.ctx.socket(zmq.REQ)
+        self.ctx.authenticate_client(job_ping_socket)
         job_ping_socket.linger = 0
         job_ping_socket.setsockopt(zmq.RCVTIMEO, int(0.9 * 1000))
         job_ping_socket.connect("tcp://" + job_ping_address)
@@ -317,8 +307,8 @@ found in your current environment. To use "pyarrow" for serialization, please in
         """
         job_heartbeat_port = mp.Value('i', 0)
         self.actor_num = mp.Value('i', 0)
-        self.job_heartbeat_process = HeartbeatServerProcess(job_heartbeat_port, self.actor_num, 
-                                         self.client_is_alive, self.dead_job_queue)
+        self.job_heartbeat_process = HeartbeatServerProcess(job_heartbeat_port, self.actor_num, self.client_is_alive,
+                                                            self.dead_job_queue)
         self.job_heartbeat_process.daemon = True
         self.job_heartbeat_process.start()
         assert job_heartbeat_port.value != 0, "fail to initialize heartbeat server for jobs."
@@ -361,7 +351,7 @@ found in your current environment. To use "pyarrow" for serialization, please in
                 self.lock.release()
                 tag = message[0]
                 if tag == remote_constants.NORMAL_TAG:
-                    job_info = cloudpickle.loads(message[1])
+                    job_info = control_serialization.loads(message[1], InitializedJob)
                     job_ping_address = job_info.ping_heartbeat_address
 
                     self.lock.acquire()
